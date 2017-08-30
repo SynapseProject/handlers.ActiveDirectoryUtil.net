@@ -28,7 +28,12 @@ public class GroupMembershipHandler : HandlerRuntimeBase
     {
         return new GroupMembershipHandlerConfig()
         {
-            DefaultDomain = "xxx"
+            ValidDomains = new List<string>()
+            {
+                "xxx",
+                "yyy",
+                "zzz"
+            }
         };
     }
 
@@ -52,26 +57,14 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                 },
                 new AddSection()
                 {
-                    Domain = "xxxxxx",
+                    Domain = "yyyyyy",
                     Groups = new List<string>()
                     {
-                        "xxxxxx"
+                        "yyyyyy"
                     },
                     Users = new List<string>()
                     {
-                        "xxxxxx"
-                    }
-                },
-                new AddSection()
-                {
-                    Domain = "xxxxxx",
-                    Groups = new List<string>()
-                    {
-                        "xxxxxx"
-                    },
-                    Users = new List<string>()
-                    {
-                        "xxxxxx"
+                        "yyyyyy"
                     }
                 }
             },
@@ -79,17 +72,16 @@ public class GroupMembershipHandler : HandlerRuntimeBase
             {
                 new DeleteSection()
                 {
-                    Domain = "xxxxxx",
+                    Domain = "zzzzzz",
                     Groups = new List<string>()
                     {
-                        "xxxxxx",
-                        "xxxxxx",
-                        "xxxxxx",
-                        "xxxxxx"
+                        "zzzzzz",
+                        "zzzzzz",
+                        "zzzzzz"
                     },
                     Users = new List<string>()
                     {
-                        "xxxxxx"
+                        "zzzzzz"
                     }
                 }
             }
@@ -98,8 +90,16 @@ public class GroupMembershipHandler : HandlerRuntimeBase
 
     public override IHandlerRuntime Initialize(string values)
     {
-        //deserialize the Config from the Handler declaration
         _config = DeserializeOrNew<GroupMembershipHandlerConfig>( values );
+
+        if ( _config?.ValidDomains?.Count > 0 )
+        {
+            _config.ValidDomains = _config.ValidDomains.ConvertAll( d => d.ToLower() );
+        }
+        else
+        {
+            _config = new GroupMembershipHandlerConfig { ValidDomains = new List<string>() };
+        }
         return this;
     }
 
@@ -121,16 +121,18 @@ public class GroupMembershipHandler : HandlerRuntimeBase
             message = "Request has been processed" + (_encounteredFailure ? " with error found" : "") + ".";
             UpdateProgress( message, _encounteredFailure ? StatusType.CompletedWithErrors : StatusType.Success );
 
-            _response.Status = message;
-            message = "Serializing response...";
-            UpdateProgress( message );
-            _result.ExitData = JsonConvert.SerializeObject( _response );
         }
         catch ( Exception ex )
         {
             message = $"Execution has been aborted due to: {ex.Message}";
             UpdateProgress( message, StatusType.Failed );
+            _encounteredFailure = true;
         }
+
+        _response.Status = message;
+        message = "Serializing response...";
+        UpdateProgress( message );
+        _result.ExitData = JsonConvert.SerializeObject( _response );
 
         message = startInfo.IsDryRun ? "Dry run execution is completed." : "Execution is completed.";
         UpdateProgress( message, StatusType.Any, true );
@@ -163,23 +165,24 @@ public class GroupMembershipHandler : HandlerRuntimeBase
         int addUserCount = 0;
         if ( parms?.AddSection != null )
         {
-            foreach ( AddSection addsection in parms.AddSection )
+            foreach ( AddSection addSection in parms.AddSection )
             {
                 addSectionCount++;
-                foreach ( string group in addsection.Groups )
+                foreach ( string group in addSection.Groups )
                 {
                     addGroupCount++;
-                    foreach ( string user in addsection.Users )
+                    foreach ( string user in addSection.Users )
                     {
                         addUserCount++;
+                        message = $"Executing add request [{addSectionCount}/{addGroupCount}/{addUserCount}]"
+                            + (isDryRun ? " in dry run mode..." : "...");
+                        UpdateProgress( message );
                         try
                         {
-                            message = $"Executing add request [{addSectionCount}/{addGroupCount}/{addUserCount}]"
-                                + (isDryRun ? " in dry run mode..." : "...");
-                            UpdateProgress( message );
-                            DirectoryServices.AddUserToGroup( user, group, isDryRun, addsection.Domain );
+                            DirectoryServices.AddUserToGroup( user, group, isDryRun, addSection.Domain );
                             Result r = new Result()
                             {
+                                Domain = addSection.Domain,
                                 User = user,
                                 Group = group,
                                 Action = "add",
@@ -192,18 +195,19 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                         }
                         catch ( Exception ex )
                         {
-                            message = $"Encountered error while processing add request [{addSectionCount}/{addGroupCount}/{addUserCount}].";
-                            UpdateProgress( message );
                             Result r = new Result()
                             {
+                                Domain = addSection.Domain,
                                 User = user,
                                 Group = group,
                                 Action = "add",
                                 ExitCode = -1,
-                                Note = (isDryRun ? "Dry run has been completed. " : "") + ex.Message
+                                Note = ex.Message
                             };
                             _response.Results.Add( r );
                             _encounteredFailure = true;
+                            message = $"Encountered error while processing add request [{addSectionCount}/{addGroupCount}/{addUserCount}].";
+                            UpdateProgress( message );
                         }
                     }
                     addUserCount = 0;
@@ -235,14 +239,15 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                     foreach ( string user in deleteSection.Users )
                     {
                         deleteUserCount++;
+                        message = $"Executing delete request [{deleteSectionCount}/{deleteGroupCount}/{deleteUserCount}]"
+                                           + (isDryRun ? " in dry run mode..." : "...");
+                        UpdateProgress( message );
                         try
                         {
-                            message = $"Executing delete request [{deleteSectionCount}/{deleteGroupCount}/{deleteUserCount}]"
-                                               + (isDryRun ? " in dry run mode..." : "...");
-                            UpdateProgress( message );
                             DirectoryServices.RemoveUserFromGroup( user, group, isDryRun, deleteSection.Domain );
                             Result r = new Result()
                             {
+                                Domain = deleteSection.Domain,
                                 User = user,
                                 Group = group,
                                 Action = "delete",
@@ -255,10 +260,9 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                         }
                         catch ( Exception ex )
                         {
-                            message = $"Encountered error while processing delete request [{deleteSectionCount}/{deleteGroupCount}/{deleteUserCount}].";
-                            UpdateProgress( message );
                             Result r = new Result()
                             {
+                                Domain = deleteSection.Domain,
                                 User = user,
                                 Group = group,
                                 Action = "delete",
@@ -267,6 +271,8 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                             };
                             _response.Results.Add( r );
                             _encounteredFailure = true;
+                            message = $"Encountered error while processing delete request [{deleteSectionCount}/{deleteGroupCount}/{deleteUserCount}].";
+                            UpdateProgress( message );
                         }
                     }
                     deleteUserCount = 0;
@@ -279,6 +285,31 @@ public class GroupMembershipHandler : HandlerRuntimeBase
             message = "No delete section is found from the incoming request.";
             UpdateProgress( message );
         }
+    }
+
+
+    private bool IsValidDomain(string domain)
+    {
+        bool isValid = false;
+
+
+        if ( _config == null || _config.ValidDomains.Count == 0 )
+        {
+            // Domain passed in considered valid if there is no pre-defined valid domains in config.
+            isValid = true;
+        }
+        else if ( String.IsNullOrWhiteSpace( domain ) )
+        {
+            // Empty domain is a valid equivalent to default domain.
+            isValid = true;
+        }
+        else if ( _config?.ValidDomains != null )
+        {
+            // Check if domain passed in is among the pre-defined values in the config.
+            isValid = _config.ValidDomains.Contains( domain.ToLower() );
+        }
+
+        return isValid;
     }
 
     private static string RemoveParameterSingleQuote(string input)

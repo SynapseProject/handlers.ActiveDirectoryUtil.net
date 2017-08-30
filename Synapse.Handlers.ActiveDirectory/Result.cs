@@ -2,18 +2,21 @@
 
 public class Result
 {
-    [JsonProperty(PropertyName = "user")]
+    [JsonProperty( PropertyName = "domain" )]
+    public string Domain { get; set; }
+
+    [JsonProperty( PropertyName = "user" )]
     public string User { get; set; }
 
-    [JsonProperty(PropertyName = "group")]
+    [JsonProperty( PropertyName = "group" )]
     public string Group { get; set; }
 
-    [JsonProperty(PropertyName = "action")]
+    [JsonProperty( PropertyName = "action" )]
     public string Action { get; set; }
 
-    [JsonProperty(PropertyName = "exitCode")]
+    [JsonProperty( PropertyName = "exitCode" )]
     public int ExitCode { get; set; }
 
-    [JsonProperty(PropertyName = "note")]
+    [JsonProperty( PropertyName = "note" )]
     public string Note { get; set; }
 }
