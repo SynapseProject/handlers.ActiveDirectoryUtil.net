@@ -115,7 +115,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
         string message;
         try
         {
-            message = "Deserializing incoming request...";
+            message = "Deserializing incoming requests...";
             UpdateProgress( message, StatusType.Initializing );
             string inputParameters = RemoveParameterSingleQuote( startInfo.Parameters );
             GroupMembershipRequest parms = DeserializeOrNew<GroupMembershipRequest>( inputParameters );
@@ -125,7 +125,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
             ProcessAddRequests( parms, startInfo.IsDryRun );
             ProcessDeleteRequests( parms, startInfo.IsDryRun );
 
-            message = "Request has been processed" + (_encounteredFailure ? " with error found" : "") + ".";
+            message = "Requests have been processed" + (_encounteredFailure ? " with errors encountered" : "") + ".";
             UpdateProgress( message, _encounteredFailure ? StatusType.CompletedWithErrors : StatusType.Success );
 
         }
@@ -148,7 +148,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
 
     private void UpdateProgress(string message, StatusType status = StatusType.Any, bool isLastStep = false)
     {
-        _mainProgressMsg = _mainProgressMsg + Environment.NewLine + message;
+        _mainProgressMsg = message;
         if ( status != StatusType.Any )
         {
             _result.Status = status;
@@ -162,6 +162,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
             _sequenceNumber++;
         }
         OnProgress( _context, _mainProgressMsg, _result.Status, _sequenceNumber );
+        OnLogMessage( _context, _mainProgressMsg);
     }
 
     private void ProcessAddRequests(GroupMembershipRequest parms, bool isDryRun)
