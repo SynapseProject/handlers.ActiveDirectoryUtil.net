@@ -1,14 +1,14 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Newtonsoft.Json;
 
-public class AddSection
+public class DeleteSection
 {
     [JsonProperty( PropertyName = "domain" )]
     public string Domain { get; set; }
 
-    [JsonProperty(PropertyName = "groups")]
+    [JsonProperty( PropertyName = "groups" )]
     public List<string> Groups { get; set; }
 
-    [JsonProperty(PropertyName = "users")]
+    [JsonProperty( PropertyName = "users" )]
     public List<string> Users { get; set; }
 }

@@ -7,8 +7,8 @@
     <ProjectGuid>{B1468ED1-CDB3-473B-B8E9-50808CF1E948}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Synapse.Handlers.ActiveDirectory</RootNamespace>
-    <AssemblyName>Synapse.Handlers.ActiveDirectory</AssemblyName>
+    <RootNamespace>Synapse.Handlers.ActiveDirectoryUtil</RootNamespace>
+    <AssemblyName>Synapse.Handlers.ActiveDirectoryUtil</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>

@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Synapse.Core;
 using Synapse.ActiveDirectory.Core;
-using Synapse.Handlers.ActiveDirectory;
 
 public class GroupMembershipHandler : HandlerRuntimeBase
 {
@@ -19,6 +18,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
         BranchStatus = StatusType.None,
         Sequence = 0
     };
+
     private readonly GroupMembershipResponse _response = new GroupMembershipResponse
     {
         Results = new List<Result>()
@@ -76,7 +76,6 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                     Groups = new List<string>()
                     {
                         "zzzzzz",
-                        "zzzzzz",
                         "zzzzzz"
                     },
                     Users = new List<string>()
@@ -90,16 +89,24 @@ public class GroupMembershipHandler : HandlerRuntimeBase
 
     public override IHandlerRuntime Initialize(string values)
     {
-        _config = DeserializeOrNew<GroupMembershipHandlerConfig>( values );
+        try
+        {
+            _config = DeserializeOrNew<GroupMembershipHandlerConfig>( values );
 
-        if ( _config?.ValidDomains?.Count > 0 )
-        {
-            _config.ValidDomains = _config.ValidDomains.ConvertAll( d => d.ToLower() );
+            if ( _config?.ValidDomains?.Count > 0 )
+            {
+                _config.ValidDomains = _config.ValidDomains.ConvertAll( d => d.ToLower() );
+            }
+            else
+            {
+                _config = new GroupMembershipHandlerConfig { ValidDomains = new List<string>() };
+            }
         }
-        else
+        catch ( Exception ex )
         {
-            _config = new GroupMembershipHandlerConfig { ValidDomains = new List<string>() };
+            OnLogMessage( "Initialization", "Encountered exception while deserializing handler config.", LogLevel.Error, ex );
         }
+
         return this;
     }
 
@@ -179,6 +186,10 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                         UpdateProgress( message );
                         try
                         {
+                            if ( !IsValidDomain( addSection.Domain ) )
+                            {
+                                throw new Exception( "Domain specified is not valid." );
+                            }
                             DirectoryServices.AddUserToGroup( user, group, isDryRun, addSection.Domain );
                             Result r = new Result()
                             {
@@ -244,6 +255,10 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                         UpdateProgress( message );
                         try
                         {
+                            if ( !IsValidDomain( deleteSection.Domain ) )
+                            {
+                                throw new Exception( "Domain specified is not valid." );
+                            }
                             DirectoryServices.RemoveUserFromGroup( user, group, isDryRun, deleteSection.Domain );
                             Result r = new Result()
                             {
@@ -267,7 +282,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                                 Group = group,
                                 Action = "delete",
                                 ExitCode = -1,
-                                Note = (isDryRun ? "Dry run has been completed. " : "") + ex.Message
+                                Note = ex.Message
                             };
                             _response.Results.Add( r );
                             _encounteredFailure = true;
@@ -290,10 +305,9 @@ public class GroupMembershipHandler : HandlerRuntimeBase
 
     private bool IsValidDomain(string domain)
     {
-        bool isValid = false;
+        bool isValid;
 
-
-        if ( _config == null || _config.ValidDomains.Count == 0 )
+        if ( _config?.ValidDomains == null || _config.ValidDomains.Count == 0 )
         {
             // Domain passed in considered valid if there is no pre-defined valid domains in config.
             isValid = true;
@@ -303,7 +317,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
             // Empty domain is a valid equivalent to default domain.
             isValid = true;
         }
-        else if ( _config?.ValidDomains != null )
+        else
         {
             // Check if domain passed in is among the pre-defined values in the config.
             isValid = _config.ValidDomains.Contains( domain.ToLower() );
