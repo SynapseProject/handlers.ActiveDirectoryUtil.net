@@ -19,7 +19,6 @@ public class GroupMembershipHandler : HandlerRuntimeBase
         Sequence = 0
     };
 
-
     private readonly GroupMembershipResponse _response = new GroupMembershipResponse
     {
         Results = new List<Result>()
