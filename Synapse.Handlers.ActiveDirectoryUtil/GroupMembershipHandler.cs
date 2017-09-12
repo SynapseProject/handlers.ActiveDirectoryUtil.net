@@ -127,7 +127,6 @@ public class GroupMembershipHandler : HandlerRuntimeBase
 
             message = "Requests have been processed" + (_encounteredFailure ? " with errors encountered" : "") + ".";
             UpdateProgress( message, _encounteredFailure ? StatusType.CompletedWithErrors : StatusType.Success );
-
         }
         catch ( Exception ex )
         {
@@ -140,6 +139,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
         message = "Serializing response...";
         UpdateProgress( message );
         _result.ExitData = JsonConvert.SerializeObject( _response );
+        _result.ExitCode = _encounteredFailure ? -1 : 0;
 
         message = startInfo.IsDryRun ? "Dry run execution is completed." : "Execution is completed.";
         UpdateProgress( message, StatusType.Any, true );
