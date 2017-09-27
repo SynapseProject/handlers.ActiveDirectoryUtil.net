@@ -93,7 +93,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
         {
             _config = DeserializeOrNew<GroupMembershipHandlerConfig>( values );
 
-            if ( _config?.ValidDomains?.Count > 0 )
+            if ( _config?.ValidDomains != null && _config.ValidDomains.Count > 0 )
             {
                 _config.ValidDomains = _config.ValidDomains.ConvertAll( d => d.ToLower() );
             }
@@ -125,7 +125,8 @@ public class GroupMembershipHandler : HandlerRuntimeBase
             ProcessAddRequests( parms, startInfo.IsDryRun );
             ProcessDeleteRequests( parms, startInfo.IsDryRun );
 
-            message = "Requests have been processed" + (_encounteredFailure ? " with errors encountered" : "") + ".";
+            message = (startInfo.IsDryRun ? "Dry run execution is completed" : "Execution is completed") 
+                + (_encounteredFailure ? " with errors encountered" : "") + ".";
             UpdateProgress( message, _encounteredFailure ? StatusType.CompletedWithErrors : StatusType.Success );
         }
         catch ( Exception ex )
@@ -134,15 +135,13 @@ public class GroupMembershipHandler : HandlerRuntimeBase
             UpdateProgress( message, StatusType.Failed );
             _encounteredFailure = true;
         }
-
         _response.Status = message;
+
         message = "Serializing response...";
-        UpdateProgress( message );
+        UpdateProgress( message, StatusType.Any, true );
         _result.ExitData = JsonConvert.SerializeObject( _response );
         _result.ExitCode = _encounteredFailure ? -1 : 0;
 
-        message = startInfo.IsDryRun ? "Dry run execution is completed." : "Execution is completed.";
-        UpdateProgress( message, StatusType.Any, true );
         return _result;
     }
 
@@ -185,6 +184,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                         message = $"Executing add request [{addSectionCount}/{addGroupCount}/{addUserCount}]"
                             + (isDryRun ? " in dry run mode..." : "...");
                         UpdateProgress( message );
+                        OnLogMessage( _context, $"Domain: {addSection.Domain}, Group: {group}, User: {user}" );
                         try
                         {
                             if ( !IsValidDomain( addSection.Domain ) )
@@ -254,6 +254,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                         message = $"Executing delete request [{deleteSectionCount}/{deleteGroupCount}/{deleteUserCount}]"
                                            + (isDryRun ? " in dry run mode..." : "...");
                         UpdateProgress( message );
+                        OnLogMessage( _context, $"Domain: {deleteSection.Domain}, Group: {group}, User: {user}" );
                         try
                         {
                             if ( !IsValidDomain( deleteSection.Domain ) )
