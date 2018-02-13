@@ -117,8 +117,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
         {
             message = "Deserializing incoming requests...";
             UpdateProgress( message, StatusType.Initializing );
-            string inputParameters = RemoveParameterSingleQuote( startInfo.Parameters );
-            GroupMembershipRequest parms = DeserializeOrNew<GroupMembershipRequest>( inputParameters );
+            GroupMembershipRequest parms = DeserializeOrNew<GroupMembershipRequest>( startInfo.Parameters );
 
             message = "Processing individual child request...";
             UpdateProgress( message, StatusType.Running );
