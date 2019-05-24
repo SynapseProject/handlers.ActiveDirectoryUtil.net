@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Synapse.Core;
 using Synapse.ActiveDirectory.Core;
+using System.DirectoryServices.AccountManagement;
 
 public class GroupMembershipHandler : HandlerRuntimeBase
 {
@@ -93,7 +94,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
         {
             _config = DeserializeOrNew<GroupMembershipHandlerConfig>( values );
 
-            if ( _config?.ValidDomains != null && _config.ValidDomains.Count > 0 )
+            if( _config?.ValidDomains != null && _config.ValidDomains.Count > 0 )
             {
                 _config.ValidDomains = _config.ValidDomains.ConvertAll( d => d.ToLower() );
             }
@@ -102,7 +103,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                 _config = new GroupMembershipHandlerConfig { ValidDomains = new List<string>() };
             }
         }
-        catch ( Exception ex )
+        catch( Exception ex )
         {
             OnLogMessage( "Initialization", "Encountered exception while deserializing handler config.", LogLevel.Error, ex );
         }
@@ -124,11 +125,11 @@ public class GroupMembershipHandler : HandlerRuntimeBase
             ProcessAddRequests( parms, startInfo.IsDryRun );
             ProcessDeleteRequests( parms, startInfo.IsDryRun );
 
-            message = (startInfo.IsDryRun ? "Dry run execution is completed" : "Execution is completed") 
+            message = (startInfo.IsDryRun ? "Dry run execution is completed" : "Execution is completed")
                 + (_encounteredFailure ? " with errors encountered" : "") + ".";
             UpdateProgress( message, _encounteredFailure ? StatusType.CompletedWithErrors : StatusType.Success );
         }
-        catch ( Exception ex )
+        catch( Exception ex )
         {
             message = $"Execution has been aborted due to: {ex.Message}";
             UpdateProgress( message, StatusType.Failed );
@@ -147,11 +148,11 @@ public class GroupMembershipHandler : HandlerRuntimeBase
     private void UpdateProgress(string message, StatusType status = StatusType.Any, bool isLastStep = false)
     {
         _mainProgressMsg = message;
-        if ( status != StatusType.Any )
+        if( status != StatusType.Any )
         {
             _result.Status = status;
         }
-        if ( isLastStep )
+        if( isLastStep )
         {
             _sequenceNumber = int.MaxValue;
         }
@@ -160,7 +161,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
             _sequenceNumber++;
         }
         OnProgress( _context, _mainProgressMsg, _result.Status, _sequenceNumber );
-        OnLogMessage( _context, _mainProgressMsg);
+        OnLogMessage( _context, _mainProgressMsg );
     }
 
     private void ProcessAddRequests(GroupMembershipRequest parms, bool isDryRun)
@@ -169,15 +170,15 @@ public class GroupMembershipHandler : HandlerRuntimeBase
         int addSectionCount = 0;
         int addGroupCount = 0;
         int addUserCount = 0;
-        if ( parms?.AddSection != null )
+        if( parms?.AddSection != null )
         {
-            foreach ( AddSection addSection in parms.AddSection )
+            foreach( AddSection addSection in parms.AddSection )
             {
                 addSectionCount++;
-                foreach ( string group in addSection.Groups )
+                foreach( string group in addSection.Groups )
                 {
                     addGroupCount++;
-                    foreach ( string user in addSection.Users )
+                    foreach( string user in addSection.Users )
                     {
                         addUserCount++;
                         message = $"Executing add request [{addSectionCount}/{addGroupCount}/{addUserCount}]"
@@ -186,11 +187,11 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                         OnLogMessage( _context, $"Domain: {addSection.Domain}, Group: {group}, User: {user}" );
                         try
                         {
-                            if ( !IsValidDomain( addSection.Domain ) )
+                            if( !IsValidDomain( addSection.Domain ) )
                             {
                                 throw new Exception( "Domain specified is not valid." );
                             }
-                            DirectoryServices.AddUserToGroup( user, group, isDryRun, addSection.Domain );
+                            AddUserToGroup( user, group, isDryRun, addSection.Domain );
                             Result r = new Result()
                             {
                                 Domain = addSection.Domain,
@@ -204,7 +205,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                             message = $"Processed add request [{addSectionCount}/{addGroupCount}/{addUserCount}].";
                             UpdateProgress( message );
                         }
-                        catch ( Exception ex )
+                        catch( Exception ex )
                         {
                             Result r = new Result()
                             {
@@ -239,15 +240,15 @@ public class GroupMembershipHandler : HandlerRuntimeBase
         int deleteSectionCount = 0;
         int deleteGroupCount = 0;
         int deleteUserCount = 0;
-        if ( parms?.DeleteSection != null )
+        if( parms?.DeleteSection != null )
         {
-            foreach ( DeleteSection deleteSection in parms.DeleteSection )
+            foreach( DeleteSection deleteSection in parms.DeleteSection )
             {
                 deleteSectionCount++;
-                foreach ( string group in deleteSection.Groups )
+                foreach( string group in deleteSection.Groups )
                 {
                     deleteGroupCount++;
-                    foreach ( string user in deleteSection.Users )
+                    foreach( string user in deleteSection.Users )
                     {
                         deleteUserCount++;
                         message = $"Executing delete request [{deleteSectionCount}/{deleteGroupCount}/{deleteUserCount}]"
@@ -256,11 +257,11 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                         OnLogMessage( _context, $"Domain: {deleteSection.Domain}, Group: {group}, User: {user}" );
                         try
                         {
-                            if ( !IsValidDomain( deleteSection.Domain ) )
+                            if( !IsValidDomain( deleteSection.Domain ) )
                             {
                                 throw new Exception( "Domain specified is not valid." );
                             }
-                            DirectoryServices.RemoveUserFromGroup( user, group, isDryRun, deleteSection.Domain );
+                            RemoveUserFromGroup( user, group, isDryRun, deleteSection.Domain );
                             Result r = new Result()
                             {
                                 Domain = deleteSection.Domain,
@@ -274,7 +275,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
                             message = $"Processed delete request [{deleteSectionCount}/{deleteGroupCount}/{deleteUserCount}].";
                             UpdateProgress( message );
                         }
-                        catch ( Exception ex )
+                        catch( Exception ex )
                         {
                             Result r = new Result()
                             {
@@ -308,12 +309,12 @@ public class GroupMembershipHandler : HandlerRuntimeBase
     {
         bool isValid;
 
-        if ( _config?.ValidDomains == null || _config.ValidDomains.Count == 0 )
+        if( _config?.ValidDomains == null || _config.ValidDomains.Count == 0 )
         {
             // Domain passed in considered valid if there is no pre-defined valid domains in config.
             isValid = true;
         }
-        else if ( String.IsNullOrWhiteSpace( domain ) )
+        else if( String.IsNullOrWhiteSpace( domain ) )
         {
             // Empty domain is a valid equivalent to default domain.
             isValid = true;
@@ -330,7 +331,7 @@ public class GroupMembershipHandler : HandlerRuntimeBase
     private static string RemoveParameterSingleQuote(string input)
     {
         string output = "";
-        if ( !string.IsNullOrWhiteSpace( input ) )
+        if( !string.IsNullOrWhiteSpace( input ) )
         {
             Regex pattern = new Regex( ":\\s*'" );
             output = pattern.Replace( input, ": " );
@@ -339,5 +340,66 @@ public class GroupMembershipHandler : HandlerRuntimeBase
         }
         return output;
     }
-}
 
+    public static void AddUserToGroup(string userIdentity, string groupIdentity, bool isDryRun = false, string domainName = null)
+    {
+        if( string.IsNullOrWhiteSpace( userIdentity ) )
+        {
+            throw new AdException( "User identity is not provided.", AdStatusType.MissingInput );
+        }
+        if( string.IsNullOrWhiteSpace( groupIdentity ) )
+        {
+            throw new AdException( "Group identity is not provided.", AdStatusType.MissingInput );
+        }
+        UserPrincipal userPrincipal = DirectoryServices.GetUserPrincipal( userIdentity, domainName );
+        if( userPrincipal == null )
+        {
+            throw new AdException( "User cannot be found.", AdStatusType.DoesNotExist );
+        }
+        GroupPrincipal groupPrincipal = DirectoryServices.GetGroupPrincipal( groupIdentity, domainName );
+        if( groupPrincipal == null )
+        {
+            throw new AdException( "Group cannot be found.", AdStatusType.DoesNotExist );
+        }
+        if( DirectoryServices.IsUserGroupMember( userPrincipal, groupPrincipal ) )
+        {
+            throw new AdException( string.Format( "User [{0}] already exists in the group [{1}].", userIdentity, groupIdentity ), AdStatusType.AlreadyExists );
+        }
+        if( !isDryRun )
+        {
+            groupPrincipal.Members.Add( userPrincipal );
+            groupPrincipal.Save();
+        }
+    }
+
+    public static void RemoveUserFromGroup(string userIdentity, string groupIdentity, bool isDryRun = false, string domainName = null)
+    {
+        if( string.IsNullOrWhiteSpace( userIdentity ) )
+        {
+            throw new AdException( "User identity is not provided.", AdStatusType.MissingInput );
+        }
+        if( string.IsNullOrWhiteSpace( groupIdentity ) )
+        {
+            throw new AdException( "Group identity is not provided.", AdStatusType.MissingInput );
+        }
+        UserPrincipal userPrincipal = DirectoryServices.GetUserPrincipal( userIdentity, domainName );
+        if( userPrincipal == null )
+        {
+            throw new AdException( "User cannot be found.", AdStatusType.DoesNotExist );
+        }
+        GroupPrincipal groupPrincipal = DirectoryServices.GetGroupPrincipal( groupIdentity, domainName );
+        if( groupPrincipal == null )
+        {
+            throw new AdException( "Group cannot be found.", AdStatusType.DoesNotExist );
+        }
+        if( !DirectoryServices.IsUserGroupMember( userPrincipal, groupPrincipal ) )
+        {
+            throw new AdException( "User does not exist in the group.", AdStatusType.DoesNotExist );
+        }
+        if( !isDryRun )
+        {
+            groupPrincipal.Members.Remove( userPrincipal );
+            groupPrincipal.Save();
+        }
+    }
+}
